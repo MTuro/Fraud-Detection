@@ -1,0 +1,213 @@
+# ============================================================================
+# .gitignore - Sistema de Detecção de Fraudes
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Ambiente Virtual Python
+# ----------------------------------------------------------------------------
+venv/
+env/
+ENV/
+.venv/
+.virtualenv/
+
+# ----------------------------------------------------------------------------
+# Python
+# ----------------------------------------------------------------------------
+# Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# ----------------------------------------------------------------------------
+# Jupyter Notebook
+# ----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# ----------------------------------------------------------------------------
+# Dados e Modelos (NÃO versionar dados sensíveis)
+# ----------------------------------------------------------------------------
+data/
+models/
+*.csv
+*.pkl
+*.h5
+*.hdf5
+*.joblib
+*.parquet
+
+# Manter estrutura de diretórios
+!data/.gitkeep
+!models/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# ----------------------------------------------------------------------------
+# IDE / Editores
+# ----------------------------------------------------------------------------
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ----------------------------------------------------------------------------
+# Sistema Operacional
+# ----------------------------------------------------------------------------
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ----------------------------------------------------------------------------
+# Ambientes e Configurações
+# ----------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.env
+
+# Credenciais
+credentials/
+secrets/
+*.pem
+*.key
+
+# ----------------------------------------------------------------------------
+# Docker
+# ----------------------------------------------------------------------------
+docker-compose.override.yml
+
+# ----------------------------------------------------------------------------
+# Kafka / Streaming
+# ----------------------------------------------------------------------------
+kafka-logs/
+zookeeper-data/
+
+# ----------------------------------------------------------------------------
+# Cloud (AWS, GCP, Azure)
+# ----------------------------------------------------------------------------
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# ----------------------------------------------------------------------------
+# Notebooks temporários
+# ----------------------------------------------------------------------------
+*-checkpoint.ipynb
+Untitled*.ipynb
+
+# ----------------------------------------------------------------------------
+# Outputs temporários
+# ----------------------------------------------------------------------------
+tmp/
+temp/
+*.tmp
+
+# ----------------------------------------------------------------------------
+# Backup files
+# ----------------------------------------------------------------------------
+*.bak
+*.backup
+*~
+
+# ----------------------------------------------------------------------------
+# Arquivos grandes (usar Git LFS se necessário)
+# ----------------------------------------------------------------------------
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ----------------------------------------------------------------------------
+# Específico do Projeto
+# ----------------------------------------------------------------------------
+# Dados gerados
+transacoes_*.csv
+X_*.csv
+y_*.csv
+scaler_*.pkl
+
+# Visualizações geradas (opcional - pode querer versionar)
+# *.png
+# *.jpg
+# *.jpeg
+
+# Modelos treinados
+modelo_*.pkl
+modelo_*.h5
+xgboost_*.model
+
+# Métricas e resultados
+metricas/
+resultados/
+experimentos/
