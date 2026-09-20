@@ -68,6 +68,9 @@ coverage.xml
 # ----------------------------------------------------------------------------
 data/
 models/
+!models/
+models/*
+!models/.gitkeep
 *.csv
 *.pkl
 *.h5
@@ -200,6 +203,9 @@ scaler_*.pkl
 # Visualizações geradas (opcional - pode querer versionar)
 # *.png
 # *.jpg
+
+# Evaluation artifacts are small and document the reported experiment.
+!results/*.csv
 # *.jpeg
 
 # Modelos treinados
