@@ -71,7 +71,7 @@ These results were produced by `python -m src.train --samples 50000` with seed 4
 | Logistic Regression | 0.65 | 0.9737 | 0.9867 | 0.9801 | 0.9923 | 0.9999 |
 | Majority baseline | 0.10 | 0.0000 | 0.0000 | 0.0000 | 0.0100 | 0.5000 |
 
-The validation search selected Gradient Boosting at threshold **0.50**; this was an evaluated outcome, not an assumed default. Full threshold tables and raw metrics are stored in [`results/`](results/).
+The validation search selected Random Forest at threshold **0.25**. Although Gradient Boosting ranks first in the table above, those are untouched test metrics; model selection used validation PR-AUC. Full threshold tables and raw metrics are stored in [`results/`](results/).
 
 ![Class distribution](results/class_distribution.png)
 
