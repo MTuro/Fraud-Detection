@@ -2,11 +2,13 @@ import argparse
 from pathlib import Path
 
 import joblib
+import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.class_weight import compute_sample_weight
@@ -17,7 +19,6 @@ from src.config import (
     RESULTS_DIR,
     TARGET,
     TEST_SIZE,
-    VALIDATION_SIZE,
 )
 from src.data.collect import RAW_FEATURES, generate_transactions, load_transactions
 from src.evaluate import (
@@ -32,14 +33,9 @@ from src.preprocessing import build_preprocessor
 
 def split_data(data: pd.DataFrame):
     features, target = data[RAW_FEATURES], data[TARGET]
-    train_x, temporary_x, train_y, temporary_y = train_test_split(
-        features, target, test_size=TEST_SIZE + VALIDATION_SIZE, stratify=target, random_state=RANDOM_STATE
+    return train_test_split(
+        features, target, test_size=TEST_SIZE, stratify=target, random_state=RANDOM_STATE
     )
-    validation_x, test_x, validation_y, test_y = train_test_split(
-        temporary_x, temporary_y, test_size=TEST_SIZE / (TEST_SIZE + VALIDATION_SIZE),
-        stratify=temporary_y, random_state=RANDOM_STATE,
-    )
-    return train_x, validation_x, test_x, train_y, validation_y, test_y
 
 
 def build_pipeline(model) -> Pipeline:
@@ -50,30 +46,44 @@ def build_pipeline(model) -> Pipeline:
     ])
 
 
+def fit_model(estimator, features: pd.DataFrame, target: pd.Series) -> Pipeline:
+    fit_params = {"model__sample_weight": compute_sample_weight("balanced", target)} if isinstance(estimator, GradientBoostingClassifier) else {}
+    return build_pipeline(clone(estimator)).fit(features, target, **fit_params)
+
+
+def cross_validated_probabilities(estimator, features: pd.DataFrame, target: pd.Series) -> np.ndarray:
+    probabilities = np.full(len(target), np.nan)
+    folds = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    for train_indices, validation_indices in folds.split(features, target):
+        pipeline = fit_model(estimator, features.iloc[train_indices], target.iloc[train_indices])
+        probabilities[validation_indices] = pipeline.predict_proba(features.iloc[validation_indices])[:, 1]
+    assert np.isfinite(probabilities).all()
+    return probabilities
+
+
 def train(data: pd.DataFrame, model_path: Path = MODEL_PATH, results_dir: Path = RESULTS_DIR) -> pd.DataFrame:
-    train_x, validation_x, test_x, train_y, validation_y, test_y = split_data(data)
+    train_x, test_x, train_y, test_y = split_data(data)
     models = {
         "Majority baseline": DummyClassifier(strategy="prior"),
         "Logistic Regression": LogisticRegression(class_weight="balanced", max_iter=1_000, random_state=RANDOM_STATE),
         "Random Forest": RandomForestClassifier(n_estimators=200, class_weight="balanced", n_jobs=-1, random_state=RANDOM_STATE),
         "Gradient Boosting": GradientBoostingClassifier(random_state=RANDOM_STATE),
     }
-    fitted, rows, validation_scores = {}, [], {}
+    fitted, rows = {}, []
     results_dir.mkdir(parents=True, exist_ok=True)
     for name, estimator in models.items():
-        fit_params = {"model__sample_weight": compute_sample_weight("balanced", train_y)} if name == "Gradient Boosting" else {}
-        pipeline = build_pipeline(estimator).fit(train_x, train_y, **fit_params)
-        validation_probability = pipeline.predict_proba(validation_x)[:, 1]
-        threshold, threshold_table = choose_threshold(validation_y, validation_probability)
+        cv_probability = cross_validated_probabilities(estimator, train_x, train_y)
+        threshold, threshold_table = choose_threshold(train_y, cv_probability)
+        cv_pr_auc = metrics_at_threshold(train_y, cv_probability, threshold)["pr_auc"]
+        pipeline = fit_model(estimator, train_x, train_y)
         test_probability = pipeline.predict_proba(test_x)[:, 1]
         metrics = metrics_at_threshold(test_y, test_probability, threshold)
-        rows.append({"model": name, "threshold": threshold, **metrics})
+        rows.append({"model": name, "threshold": threshold, "cv_pr_auc": cv_pr_auc, **{f"test_{key}": value for key, value in metrics.items()}})
         fitted[name] = pipeline
-        validation_scores[name] = metrics_at_threshold(validation_y, validation_probability, threshold)["pr_auc"]
         threshold_table.to_csv(results_dir / f"thresholds_{name.lower().replace(' ', '_')}.csv", index=False)
 
-    results = pd.DataFrame(rows).sort_values("pr_auc", ascending=False).reset_index(drop=True)
-    best_name = max(validation_scores, key=validation_scores.get)
+    results = pd.DataFrame(rows).sort_values("cv_pr_auc", ascending=False).reset_index(drop=True)
+    best_name = results.iloc[0]["model"]
     best_row = results.loc[results["model"].eq(best_name)].iloc[0]
     best_model = fitted[best_name]
     model_path.parent.mkdir(parents=True, exist_ok=True)

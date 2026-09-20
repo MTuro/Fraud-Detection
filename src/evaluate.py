@@ -81,12 +81,12 @@ def save_dataset_plots(data: pd.DataFrame, pipeline, output_dir: str | Path) -> 
     model = pipeline.named_steps["model"]
     importance = getattr(model, "feature_importances_", None)
     if importance is None:
-        return
+        importance = np.abs(model.coef_[0])
     names = pipeline.named_steps["preprocessing"].get_feature_names_out()
     top = pd.Series(importance, index=names).nlargest(12).sort_values()
     top.plot.barh()
-    plt.xlabel("Importance")
-    plt.title("Top feature importances")
+    plt.xlabel("Absolute importance")
+    plt.title("Top feature effects")
     plt.tight_layout()
     plt.savefig(output_dir / "feature_importance.png", dpi=160)
     plt.close()

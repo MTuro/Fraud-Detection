@@ -1,6 +1,6 @@
 # Fraud Detection
 
-An end-to-end **binary classification** project that predicts **fraud vs. non-fraud** in financial transactions. It demonstrates a reproducible ML workflow for imbalanced data: validated collection, in-pipeline feature engineering and preprocessing, train/validation/test isolation, baseline comparison, threshold selection, error analysis, and saved-model inference.
+An end-to-end **binary classification** project that predicts **fraud vs. non-fraud** in financial transactions. It demonstrates a reproducible ML workflow for imbalanced data: validated collection, in-pipeline feature engineering and preprocessing, cross-validation, untouched-test evaluation, threshold selection, error analysis, and saved-model inference.
 
 ## Problem
 
@@ -12,18 +12,18 @@ The project prioritizes fraud-class **precision**, **recall**, **F1**, **PR-AUC*
 
 The repository uses a reproducible synthetic dataset so it can be run without credentials or private financial data. The default experiment creates 50,000 transactions with 1% fraud and 12 raw features describing amount, time, recent activity, account age, card/channel, location, authentication failures, merchant category, and historical spending.
 
-The generator encodes plausible differences between classes. This makes the repository useful for demonstrating methodology, not for claiming production fraud performance.
+The generator uses overlapping class distributions and swaps 10% of fraud labels with the same number of normal labels. This preserves prevalence while avoiding an unrealistically separable benchmark. The repository demonstrates methodology; it does not claim production fraud performance.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     A[Raw or synthetic data] --> B[Schema validation]
-    B --> C[70/15/15 split]
-    C --> D[Feature engineering]
+    B --> C[85/15 development/test split]
+    C --> D[5-fold stratified cross-validation]
     D --> E[Imputation + encoding + scaling]
     E --> F[Model training]
-    F --> G[Validation threshold selection]
+    F --> G[Out-of-fold threshold selection]
     G --> H[One-time test evaluation]
     F --> I[Saved pipeline]
     I --> J[Inference]
@@ -47,7 +47,7 @@ Three domain features are derived in [`src/features.py`](src/features.py): trans
 
 ## Class imbalance
 
-The majority-class dummy classifier establishes the no-skill baseline. Logistic Regression and Random Forest use balanced class weights; Gradient Boosting receives balanced sample weights. No synthetic oversampling is used. Every probabilistic model is evaluated over validation thresholds from 0.10 to 0.90.
+The majority-class dummy classifier establishes the no-skill baseline. Logistic Regression and Random Forest use balanced class weights; Gradient Boosting receives balanced sample weights. No synthetic oversampling is used. Every probabilistic model is evaluated over out-of-fold thresholds from 0.10 to 0.90.
 
 ## Models
 
@@ -58,20 +58,20 @@ The experiment intentionally compares only four useful reference points:
 3. Random Forest
 4. Gradient Boosting
 
-The best model is selected by validation PR-AUC. Its classification threshold is selected by validation F1, and the untouched test set is used once for the reported metrics.
+The best model is selected by out-of-fold PR-AUC from five-fold stratified cross-validation. Its classification threshold maximizes out-of-fold F1, then the model is refitted on the full development set and evaluated once on the untouched test set.
 
 ## Evaluation and results
 
-These results were produced by `python -m src.train --samples 50000` with seed 42 and a stratified 70%/15%/15% split (7,500 test transactions, including 75 frauds).
+These results were produced by `python -m src.train --samples 50000` with seed 42, five-fold stratified cross-validation on 85% of the data, and a 15% test split (7,500 transactions, including 75 frauds).
 
-| Model | Threshold | Precision | Recall | F1 | PR-AUC | ROC-AUC |
-|---|---:|---:|---:|---:|---:|---:|
-| Gradient Boosting | 0.50 | 0.9740 | 1.0000 | 0.9868 | 0.9998 | 1.0000 |
-| Random Forest | 0.25 | 0.9615 | 1.0000 | 0.9804 | 0.9981 | 1.0000 |
-| Logistic Regression | 0.65 | 0.9737 | 0.9867 | 0.9801 | 0.9923 | 0.9999 |
-| Majority baseline | 0.10 | 0.0000 | 0.0000 | 0.0000 | 0.0100 | 0.5000 |
+| Model | Threshold | CV PR-AUC | Test precision | Test recall | Test F1 | Test PR-AUC | Test ROC-AUC |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Logistic Regression | 0.90 | 0.7166 | 0.7941 | 0.7200 | 0.7552 | 0.7877 | 0.9685 |
+| Random Forest | 0.35 | 0.6820 | 0.7971 | 0.7333 | 0.7639 | 0.7882 | 0.9646 |
+| Gradient Boosting | 0.90 | 0.6641 | 0.7162 | 0.7067 | 0.7114 | 0.7517 | 0.9662 |
+| Majority baseline | 0.10 | 0.0100 | 0.0000 | 0.0000 | 0.0000 | 0.0100 | 0.5000 |
 
-The validation search selected Random Forest at threshold **0.25**. Although Gradient Boosting ranks first in the table above, those are untouched test metrics; model selection used validation PR-AUC. Full threshold tables and raw metrics are stored in [`results/`](results/).
+Cross-validation selected Logistic Regression at threshold **0.90**. Random Forest scored slightly higher on test PR-AUC and F1, but the test set did not participate in model or threshold selection. Full out-of-fold threshold tables and raw metrics are stored in [`results/`](results/).
 
 ![Class distribution](results/class_distribution.png)
 
@@ -83,7 +83,7 @@ The validation search selected Random Forest at threshold **0.25**. Although Gra
 
 ## Error analysis
 
-The selected model produced 7,422 true negatives, 3 false positives, 0 false negatives, and 75 true positives on the synthetic test set.
+The selected model produced 7,411 true negatives, 14 false positives, 21 false negatives, and 54 true positives on the synthetic test set.
 
 - A **false positive** can block a legitimate transaction, harm customer experience, and add review cost.
 - A **false negative** lets fraud pass, creating financial and operational risk.
@@ -124,7 +124,7 @@ ruff check .
 python -m pytest -q
 ```
 
-The 11 focused tests cover deterministic collection, imbalance, missing values, unknown categories, feature calculations, split proportions, pipeline probabilities, model loading, inference shape, and invalid inputs. GitHub Actions runs Ruff and pytest on pushes and pull requests.
+The 14 focused tests cover deterministic collection, class overlap, imbalance, missing values, unknown categories, feature calculations, split proportions, cross-validation coverage, artifact selection, model loading, inference shape, and invalid inputs. GitHub Actions runs Ruff and pytest on pushes and pull requests.
 
 ## Project structure
 
@@ -149,7 +149,7 @@ The 11 focused tests cover deterministic collection, imbalance, missing values, 
 
 ## Limitations
 
-- Synthetic data is easier and cleaner than production transaction streams, so the high scores should not be interpreted as production readiness.
+- Synthetic data remains easier than production transaction streams, so these scores should not be interpreted as production readiness.
 - The generated timestamp is not tied to behavioral drift; a random stratified split is appropriate here, while real temporal data should use chronological validation and backtesting.
 - Fraud prevalence, feature availability, and error costs differ by institution and market.
 - The model is not calibrated, monitored for drift, or evaluated for fairness.

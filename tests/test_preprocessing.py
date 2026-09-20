@@ -27,3 +27,9 @@ def test_generated_data_is_reproducible():
 
 def test_generated_data_is_imbalanced():
     assert generate_transactions(1_000, fraud_ratio=.02)["is_fraud"].mean() == .02
+
+
+def test_generated_classes_overlap():
+    data = generate_transactions(10_000, fraud_ratio=.1)
+    central = data["valor_transacao"].between(50, 150) & data["num_transacoes_24h"].between(1, 4)
+    assert set(data.loc[central, "is_fraud"]) == {0, 1}

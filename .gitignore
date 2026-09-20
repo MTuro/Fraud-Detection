@@ -67,6 +67,8 @@ coverage.xml
 # Dados e Modelos (NÃO versionar dados sensíveis)
 # ----------------------------------------------------------------------------
 data/
+!src/data/
+!src/data/*.py
 models/
 !models/
 models/*
